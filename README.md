@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ranking de Clientes
 
-## Getting Started
+Mini-juego multiplayer para el MBR. El presentador abre y revela cada ronda; el equipo ordena 6 clientes desde el celular.
 
-First, run the development server:
+## Setup local
+
+```bash
+cd nk-internal/mbr
+npm install
+cp .env.example .env.local
+```
+
+Creá un Redis en [Upstash](https://upstash.com) (o Vercel Marketplace → Upstash Redis) y copiá:
+
+```
+UPSTASH_REDIS_REST_URL=...
+UPSTASH_REDIS_REST_TOKEN=...
+```
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abrí `/` en la laptop (presentador → `/host`) y `/play` en los celulares. Sin Redis, el estado vive en memoria del proceso local: sirve para probar la UI, no para varios deploys/serverless.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy en Vercel
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npx vercel
+```
 
-## Learn More
+O conectá el repo en el dashboard. Agregá las mismas env vars en el proyecto de Vercel.
 
-To learn more about Next.js, take a look at the following resources:
+Probar `/`, `/host` y `/play` en un celular real antes de la reunión.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Cómo se juega
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Presentador: **Abrir ronda**
+2. Equipo: arrastrar 1º–5º + Último lugar → **Enviar respuesta**
+3. Presentador: **Revelar resultado** (leaderboard acumulado)
+4. **Siguiente ronda** y repetir
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Máximo 120 pts por ronda (6 × 20). Verde ≥16, amarillo ≥8, rojo &lt;8.
