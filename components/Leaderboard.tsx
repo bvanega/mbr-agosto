@@ -36,10 +36,10 @@ export function Leaderboard({
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium text-paper">{row.name}</p>
               <p className="text-xs text-muted">
-                {row.submitted[0] ? "R1 ✓" : "R1 —"} · {row.submitted[1] ? "R2 ✓" : "R2 —"}
-                {revealScores
-                  ? ` · ${row.roundScores[0]} + ${row.roundScores[1]}`
-                  : ""}
+                {row.submitted
+                  .map((done, roundIndex) => (done ? `R${roundIndex + 1} ✓` : `R${roundIndex + 1} —`))
+                  .join(" · ")}
+                {revealScores ? ` · ${row.roundScores.join(" + ")}` : ""}
               </p>
             </div>
             {revealScores ? (

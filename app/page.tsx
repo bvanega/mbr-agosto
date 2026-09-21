@@ -10,8 +10,7 @@ export default function Home() {
         Ranking de Clientes
       </h1>
       <p className="mt-3 text-base leading-relaxed text-muted">
-        Dos rondas. Seis tarjetas. Ordená del 1º al 5º y dejá un último lugar.
-        El presentador abre y revela cada ronda.
+        Tres rondas: top 5 y los peores del período. El presentador abre y revela cada una.
       </p>
 
       <div className="mt-10 flex flex-col gap-3">

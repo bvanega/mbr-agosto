@@ -7,6 +7,7 @@
   --line: #232b27;
   --mint: #2fe6bc;
   --red: #f1453d;
+  --red-dim: rgba(241, 69, 61, 0.14);
   --gold: #e8c34a;
   --paper: #f2f4f2;
   --muted: #8b978f;
@@ -19,6 +20,7 @@
   --color-line: var(--line);
   --color-mint: var(--mint);
   --color-red: var(--red);
+  --color-red-dim: var(--red-dim);
   --color-gold: var(--gold);
   --color-paper: var(--paper);
   --color-muted: var(--muted);

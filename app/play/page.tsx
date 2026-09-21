@@ -1,8 +1,8 @@
 "use client";
 
 import { RankList } from "@/components/RankList";
-import { ROUNDS, shuffledClientKeys } from "@/lib/data";
-import { scoreOrder } from "@/lib/scoring";
+import { ROUND_COUNT, ROUNDS, shuffledClientKeys } from "@/lib/data";
+import { maxRoundPoints, scoreOrder } from "@/lib/scoring";
 import { useSession } from "@/lib/use-session";
 import { useMemo, useState } from "react";
 
@@ -173,7 +173,9 @@ export default function PlayPage() {
         Hola, {name}
       </p>
       <h1 className="mt-2 font-display text-2xl font-semibold tracking-tight">
-        {session ? round.title : "Ranking de Clientes"}
+        {session
+          ? `Ronda ${session.round + 1} / ${ROUND_COUNT} — ${round.title}`
+          : "Ranking de Clientes"}
       </h1>
 
       {!session ? (
@@ -188,7 +190,7 @@ export default function PlayPage() {
       ) : session.phase === "voting" ? (
         <>
           <p className="mt-2 text-sm text-muted">
-            Ordená del 1º al 5º. El último slot es el último lugar.
+            Ordená el top 5 y los peores del período. Los slots de abajo son el peor profit.
           </p>
           <div className="mt-5">
             <RankList
@@ -196,6 +198,8 @@ export default function PlayPage() {
               order={order}
               onChange={hasSubmitted ? undefined : updateOrder}
               disabled={hasSubmitted}
+              lastPos={round.totalClients}
+              worstCount={round.worstCount}
             />
           </div>
           {hasSubmitted ? (
@@ -226,7 +230,9 @@ export default function PlayPage() {
               </p>
               <p className="font-display text-4xl font-semibold text-mint">
                 {result.total}
-                <span className="ml-2 text-base font-medium text-muted">/ 120</span>
+                <span className="ml-2 text-base font-medium text-muted">
+                  / {maxRoundPoints(round.clients.length)}
+                </span>
               </p>
             </div>
           ) : (
@@ -241,6 +247,8 @@ export default function PlayPage() {
               disabled
               showValues
               scores={result?.cards}
+              lastPos={round.totalClients}
+              worstCount={round.worstCount}
             />
           </div>
         </>

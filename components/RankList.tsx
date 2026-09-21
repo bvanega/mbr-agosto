@@ -19,12 +19,13 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useMemo, useState, type HTMLAttributes } from "react";
-import { formatUsd, type Client } from "@/lib/data";
-import { scoreTone, type CardScore } from "@/lib/scoring";
+import ClientLogo from "@/components/ClientLogo";
+import RevealStats from "@/components/RevealStats";
+import { type Client } from "@/lib/data";
+import { isLastPlace, labelFor, type CardScore } from "@/lib/scoring";
 
-function positionLabel(index: number) {
-  if (index === 5) return "Último";
-  return `${index + 1}º`;
+function posLabel(pos: number, lastPos: number) {
+  return isLastPlace(pos, lastPos) ? "el peor" : `${pos}º`;
 }
 
 type RankListProps = {
@@ -34,6 +35,8 @@ type RankListProps = {
   disabled?: boolean;
   scores?: CardScore[];
   showValues?: boolean;
+  lastPos?: number;
+  worstCount?: number;
 };
 
 export function RankList({
@@ -43,6 +46,8 @@ export function RankList({
   disabled = false,
   scores,
   showValues = false,
+  lastPos = 11,
+  worstCount = 1,
 }: RankListProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const lookup = useMemo(
@@ -91,7 +96,7 @@ export function RankList({
               <li key={key}>
                 {index === 5 ? (
                   <p className="mb-1.5 mt-3 font-display text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
-                    Último lugar
+                    {worstCount === 1 ? "Último lugar" : "Peor profit"}
                   </p>
                 ) : null}
                 <SortableCard
@@ -100,6 +105,8 @@ export function RankList({
                   disabled={disabled || !onChange}
                   score={scoreLookup.get(key)}
                   showValues={showValues}
+                  lastPos={lastPos}
+                  worstCount={worstCount}
                 />
               </li>
             );
@@ -119,6 +126,8 @@ export function RankList({
             index={order.indexOf(activeClient.key)}
             dragging
             showValues={showValues}
+            lastPos={lastPos}
+            worstCount={worstCount}
           />
         ) : null}
       </DragOverlay>
@@ -132,12 +141,16 @@ function SortableCard({
   disabled,
   score,
   showValues,
+  lastPos,
+  worstCount,
 }: {
   client: Client;
   index: number;
   disabled: boolean;
   score?: CardScore;
   showValues: boolean;
+  lastPos: number;
+  worstCount: number;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: client.key, disabled });
@@ -155,6 +168,8 @@ function SortableCard({
         disabled={disabled}
         score={score}
         showValues={showValues}
+        lastPos={lastPos}
+        worstCount={worstCount}
         handleProps={disabled ? undefined : { ...attributes, ...listeners }}
       />
     </div>
@@ -168,6 +183,8 @@ function CardFace({
   dragging,
   score,
   showValues,
+  lastPos,
+  worstCount,
   handleProps,
 }: {
   client: Client;
@@ -176,52 +193,69 @@ function CardFace({
   dragging?: boolean;
   score?: CardScore;
   showValues: boolean;
+  lastPos: number;
+  worstCount: number;
   handleProps?: HTMLAttributes<HTMLButtonElement>;
 }) {
-  const tone = score ? scoreTone(score.points) : null;
-  const toneClass =
-    tone === "mint"
-      ? "border-mint/70 bg-mint/10"
-      : tone === "gold"
-        ? "border-gold/70 bg-gold/10"
-        : tone === "red"
-          ? "border-red/60 bg-red/10"
-          : "border-line bg-panel";
-
+  const pts = score?.points;
+  const borderClass =
+    pts === undefined
+      ? "border-line"
+      : pts >= 16
+        ? "border-l-[var(--mint)]"
+        : pts >= 8
+          ? "border-l-[var(--gold)]"
+          : "border-l-[var(--red)]";
+  const bgClass = showValues
+    ? client.profit < 0
+      ? "bg-[var(--red-dim)]"
+      : "bg-[var(--panel-2)]"
+    : "bg-panel";
   const badgeClass =
-    tone === "mint"
-      ? "text-mint"
-      : tone === "gold"
-        ? "text-gold"
-        : tone === "red"
-          ? "text-red"
-          : "text-muted";
+    pts === undefined
+      ? "text-muted"
+      : pts >= 16
+        ? "text-mint"
+        : pts >= 8
+          ? "text-gold"
+          : "text-red";
 
   return (
     <div
-      className={`flex min-h-[58px] items-center gap-3 rounded-[16px] border px-3 py-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.18)] ${toneClass} ${
-        dragging ? "scale-[1.02]" : ""
-      }`}
+      className={`flex min-h-[58px] items-start gap-3 rounded-[16px] border px-3 py-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.18)] ${bgClass} ${
+        showValues ? `border-line border-l-4 ${borderClass}` : "border-line"
+      } ${dragging ? "scale-[1.02]" : ""}`}
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-panel-2 font-display text-sm font-semibold text-paper">
-        {positionLabel(index)}
+      <span className="mt-0.5 flex h-9 min-w-[3.25rem] shrink-0 items-center justify-center rounded-full bg-panel-2 px-1.5 text-center font-display text-[10px] font-semibold leading-tight text-paper">
+        {labelFor(index, lastPos, worstCount)}
       </span>
+      <ClientLogo
+        key={`${client.key}-${client.name}`}
+        clientKey={client.key}
+        name={client.name}
+        domain={client.domain}
+        size={36}
+      />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-paper">{client.name}</p>
+        {showValues ? (
+          <RevealStats
+            profit={client.profit}
+            revenue={client.revenue}
+            costoEquipo={client.costoEquipo}
+          />
+        ) : null}
         {score ? (
-          <p className={`text-xs ${badgeClass}`}>
-            Tu puesto {score.guessedPos === 11 ? "último" : `${score.guessedPos}º`} · real{" "}
-            {score.correctPos === 11 ? "último" : `${score.correctPos}º`} · {score.points} pts
-            {showValues ? ` · ${formatUsd(score.value)}` : ""}
+          <p className={`mt-1 text-xs ${badgeClass}`}>
+            Tu puesto {posLabel(score.guessedPos, lastPos)} · real{" "}
+            {posLabel(score.correctPos, lastPos)} · {score.points} pts
           </p>
-        ) : showValues ? (
-          <p className="text-xs text-muted">{formatUsd(client.value)}</p>
-        ) : handleProps ? (
+        ) : handleProps && !showValues ? (
           <p className="text-xs text-muted">Arrastrá para ordenar</p>
         ) : null}
       </div>
       {score ? (
-        <span className={`font-display text-lg font-semibold ${badgeClass}`}>
+        <span className={`mt-0.5 font-display text-lg font-semibold ${badgeClass}`}>
           {score.points}
         </span>
       ) : handleProps ? (

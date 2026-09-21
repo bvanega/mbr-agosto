@@ -1,7 +1,8 @@
 import { Redis } from "@upstash/redis";
-import { ROUNDS } from "./data";
+import { ROUND_COUNT, ROUNDS } from "./data";
 import { scoreOrder } from "./scoring";
 import type { LeaderboardRow, SessionState, Submission } from "./types";
+import { isRoundIndex } from "./types";
 
 const url = process.env.UPSTASH_REDIS_REST_URL;
 const token = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -10,18 +11,25 @@ export const redis = url && token ? new Redis({ url, token }) : null;
 
 type MemoryStore = {
   session: SessionState;
-  participants: [Set<string>, Set<string>];
+  participants: Set<string>[];
   subs: Map<string, Submission>;
 };
+
+function emptyParticipants(): Set<string>[] {
+  return Array.from({ length: ROUND_COUNT }, () => new Set<string>());
+}
 
 function memory(): MemoryStore {
   const globalStore = globalThis as typeof globalThis & {
     __rankingMemory?: MemoryStore;
   };
-  if (!globalStore.__rankingMemory) {
+  if (
+    !globalStore.__rankingMemory ||
+    globalStore.__rankingMemory.participants.length !== ROUND_COUNT
+  ) {
     globalStore.__rankingMemory = {
       session: { round: 0, phase: "idle" },
-      participants: [new Set(), new Set()],
+      participants: emptyParticipants(),
       subs: new Map(),
     };
   }
@@ -43,7 +51,7 @@ export async function getSession(): Promise<SessionState> {
     const session = await redis.get<SessionState>("session");
     if (
       session &&
-      (session.round === 0 || session.round === 1) &&
+      isRoundIndex(session.round) &&
       (session.phase === "idle" ||
         session.phase === "voting" ||
         session.phase === "revealed")
@@ -65,7 +73,7 @@ export async function setSession(session: SessionState): Promise<SessionState> {
 }
 
 export async function saveSubmission(
-  round: 0 | 1,
+  round: number,
   participantId: string,
   submission: Submission,
 ): Promise<void> {
@@ -80,7 +88,7 @@ export async function saveSubmission(
 }
 
 export async function getSubmission(
-  round: 0 | 1,
+  round: number,
   participantId: string,
 ): Promise<Submission | null> {
   if (redis) {
@@ -89,21 +97,21 @@ export async function getSubmission(
   return memory().subs.get(subKey(round, participantId)) ?? null;
 }
 
-export async function listParticipantIds(round: 0 | 1): Promise<string[]> {
+export async function listParticipantIds(round: number): Promise<string[]> {
   if (redis) {
     return await redis.smembers(participantsKey(round));
   }
   return [...memory().participants[round]];
 }
 
-export async function submittedCount(round: 0 | 1): Promise<number> {
+export async function submittedCount(round: number): Promise<number> {
   if (redis) {
     return await redis.scard(participantsKey(round));
   }
   return memory().participants[round].size;
 }
 
-export async function listSubmissions(round: 0 | 1) {
+export async function listSubmissions(round: number) {
   const ids = await listParticipantIds(round);
   if (ids.length === 0) return [];
 
@@ -126,21 +134,21 @@ export async function listSubmissions(round: 0 | 1) {
 
 export async function resetGame(): Promise<SessionState> {
   if (redis) {
-    const ids0 = await redis.smembers(participantsKey(0));
-    const ids1 = await redis.smembers(participantsKey(1));
+    const idsByRound = await Promise.all(
+      ROUNDS.map((_, round) => redis.smembers(participantsKey(round))),
+    );
     const keys = [
       "session",
-      participantsKey(0),
-      participantsKey(1),
-      ...ids0.map((id) => subKey(0, id)),
-      ...ids1.map((id) => subKey(1, id)),
+      ...ROUNDS.map((_, round) => participantsKey(round)),
+      ...idsByRound.flatMap((ids, round) =>
+        ids.map((id) => subKey(round, id)),
+      ),
     ];
     if (keys.length) await redis.del(...keys);
   } else {
     const store = memory();
     store.session = { ...DEFAULT_SESSION };
-    store.participants[0].clear();
-    store.participants[1].clear();
+    store.participants = emptyParticipants();
     store.subs.clear();
   }
   return setSession({ ...DEFAULT_SESSION });
@@ -151,43 +159,43 @@ export async function getLeaderboard(): Promise<{
   rows: LeaderboardRow[];
 }> {
   const session = await getSession();
-  const [round0, round1] = await Promise.all([
-    listSubmissions(0),
-    listSubmissions(1),
-  ]);
+  const perRound = await Promise.all(
+    ROUNDS.map((_, round) => listSubmissions(round)),
+  );
 
   const byId = new Map<
     string,
-    { name: string; orders: [string[] | null, string[] | null] }
+    { name: string; orders: Array<string[] | null> }
   >();
 
-  for (const row of round0) {
-    byId.set(row.id, { name: row.name, orders: [row.order, null] });
-  }
-  for (const row of round1) {
-    const existing = byId.get(row.id);
-    if (existing) {
-      existing.name = row.name;
-      existing.orders[1] = row.order;
-    } else {
-      byId.set(row.id, { name: row.name, orders: [null, row.order] });
+  perRound.forEach((rows, round) => {
+    for (const row of rows) {
+      const existing = byId.get(row.id);
+      if (existing) {
+        existing.name = row.name;
+        existing.orders[round] = row.order;
+      } else {
+        const orders: Array<string[] | null> = Array.from(
+          { length: ROUND_COUNT },
+          () => null,
+        );
+        orders[round] = row.order;
+        byId.set(row.id, { name: row.name, orders });
+      }
     }
-  }
+  });
 
   const rows: LeaderboardRow[] = [...byId.entries()].map(
     ([participantId, value]) => {
-      const score0 = value.orders[0]
-        ? scoreOrder(value.orders[0], ROUNDS[0]).total
-        : 0;
-      const score1 = value.orders[1]
-        ? scoreOrder(value.orders[1], ROUNDS[1]).total
-        : 0;
+      const roundScores = value.orders.map((order, round) =>
+        order ? scoreOrder(order, ROUNDS[round]).total : 0,
+      );
       return {
         participantId,
         name: value.name,
-        submitted: [Boolean(value.orders[0]), Boolean(value.orders[1])],
-        roundScores: [score0, score1],
-        total: score0 + score1,
+        submitted: value.orders.map(Boolean),
+        roundScores,
+        total: roundScores.reduce((sum, score) => sum + score, 0),
       };
     },
   );

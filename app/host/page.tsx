@@ -2,7 +2,7 @@
 
 import { Leaderboard } from "@/components/Leaderboard";
 import { RankList } from "@/components/RankList";
-import { ROUNDS, shuffledClientKeys } from "@/lib/data";
+import { ROUND_COUNT, ROUNDS, shuffledClientKeys } from "@/lib/data";
 import type { LeaderboardRow } from "@/lib/types";
 import { useSession } from "@/lib/use-session";
 import { useEffect, useMemo, useState } from "react";
@@ -71,7 +71,7 @@ export default function HostPage() {
         <>
           <div className="mt-6 rounded-[16px] border border-line bg-panel p-4">
             <p className="text-xs uppercase tracking-[0.16em] text-muted">
-              Ronda {session.round + 1} de 2 · {session.phase}
+              Ronda {session.round + 1} / {ROUND_COUNT} — {round.title}
             </p>
             <h2 className="mt-1 font-display text-xl font-semibold">{round.title}</h2>
             <p className="mt-1 text-sm text-muted">
@@ -107,7 +107,7 @@ export default function HostPage() {
             </button>
             <button
               type="button"
-              disabled={session.round === 1}
+              disabled={session.round === ROUND_COUNT - 1}
               onClick={() => void postSession({ action: "next" })}
               className="min-h-12 rounded-[16px] border border-line bg-panel-2 px-4 text-sm text-paper disabled:opacity-40"
             >
@@ -136,6 +136,8 @@ export default function HostPage() {
               order={session.phase === "revealed" ? correctOrder : previewOrder}
               disabled
               showValues={session.phase === "revealed"}
+              lastPos={round.totalClients}
+              worstCount={round.worstCount}
             />
           </section>
 
