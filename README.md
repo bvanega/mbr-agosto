@@ -1,27 +1,16 @@
 # Ranking de Clientes
 
-Mini-juego multiplayer para el MBR. El presentador abre y revela cada ronda; el equipo ordena 6 clientes desde el celular.
+Juego para el MBR. El presentador comparte pantalla y el equipo arma el ranking en vivo, sobre una sola pantalla.
 
-## Setup local
+## Correr local
 
 ```bash
 cd nk-internal/mbr
 npm install
-cp .env.example .env.local
-```
-
-Creá un Redis en [Upstash](https://upstash.com) (o Vercel Marketplace → Upstash Redis) y copiá:
-
-```
-UPSTASH_REDIS_REST_URL=...
-UPSTASH_REDIS_REST_TOKEN=...
-```
-
-```bash
 npm run dev
 ```
 
-Abrí `/` en la laptop (presentador → `/host`) y `/play` en los celulares. Sin Redis, el estado vive en memoria del proceso local: sirve para probar la UI, no para varios deploys/serverless.
+Abrí `http://localhost:3000`. No necesita base de datos, variables de entorno ni backend: todo el estado vive en el navegador.
 
 ## Deploy en Vercel
 
@@ -29,15 +18,18 @@ Abrí `/` en la laptop (presentador → `/host`) y `/play` en los celulares. Sin
 npx vercel
 ```
 
-O conectá el repo en el dashboard. Agregá las mismas env vars en el proyecto de Vercel.
-
-Probar `/`, `/host` y `/play` en un celular real antes de la reunión.
+O conectá el repo desde el dashboard. No hay env vars que configurar.
 
 ## Cómo se juega
 
-1. Presentador: **Abrir ronda**
-2. Equipo: arrastrar 1º–5º + Último lugar → **Enviar respuesta**
-3. Presentador: **Revelar resultado** (leaderboard acumulado)
-4. **Siguiente ronda** y repetir
+Tres rondas, una por período. En cada una hay 6 u 8 tarjetas de clientes sin montos.
 
-Máximo 120 pts por ronda (6 × 20). Verde ≥16, amarillo ≥8, rojo &lt;8.
+1. Entre todos arrastran las tarjetas: 1º a 5º por profit, y abajo los peores puestos del período (`#49`, `#50`, `#51`, por ejemplo).
+2. **Revelar resultado** muestra profit, revenue, costo de equipo y margen de cada cliente, más los puntos de cada tarjeta.
+3. **Siguiente ronda** y repetir. Al final aparece el resumen con el puntaje de las tres.
+
+Cada tarjeta da hasta 20 puntos, restando 2 por cada posición de distancia. Al revelar, el borde izquierdo indica el puntaje (mint / gold / rojo) y el fondo se pone rojo si el profit real del cliente fue negativo.
+
+## Logos
+
+`components/ClientLogo.tsx` intenta en cascada: `/public/logos/{key}.png` → `https://logo.clearbit.com/{domain}` → iniciales. Los `domain` de `lib/data.ts` están vacíos; completalos o subí los PNG a `public/logos/`.

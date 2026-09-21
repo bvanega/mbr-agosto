@@ -76,6 +76,26 @@ export function shuffledClientKeys(round: Round): string[] {
   return shuffle(round.clients.map((client) => client.key));
 }
 
+// El primer render corre en el server y en el cliente: sin una semilla fija
+// cada uno mezclaría distinto y la hidratación fallaría.
+export function seededClientKeys(round: Round, seed: number): string[] {
+  let state = (seed * 2654435761) >>> 0;
+  const random = () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  const keys = round.clients.map((client) => client.key);
+  for (let i = keys.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(random() * (i + 1));
+    [keys[i], keys[j]] = [keys[j], keys[i]];
+  }
+  return keys;
+}
+
 export function clientsByKey(round: Round): Map<string, Client> {
   return new Map(round.clients.map((client) => [client.key, client]));
 }
