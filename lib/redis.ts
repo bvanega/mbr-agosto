@@ -46,6 +46,47 @@ function participantsKey(round: number) {
   return `participants:${round}`;
 }
 
+// #region agent log
+const DEBUG_INSTANCE_ID = Math.random().toString(36).slice(2, 8);
+
+export async function debugSessionState() {
+  const envSeen = [
+    "UPSTASH_REDIS_REST_URL",
+    "UPSTASH_REDIS_REST_TOKEN",
+    "KV_REST_API_URL",
+    "KV_REST_API_TOKEN",
+    "KV_URL",
+    "REDIS_URL",
+  ].filter((name) => Boolean(process.env[name]));
+
+  let raw: unknown = null;
+  let rawType = "none";
+  let redisErr: string | null = null;
+
+  if (redis) {
+    try {
+      raw = await redis.get("session");
+      rawType = typeof raw;
+    } catch (error) {
+      redisErr = error instanceof Error ? error.message : String(error);
+    }
+  } else {
+    raw = memory().session;
+    rawType = "memory";
+  }
+
+  return {
+    instanceId: DEBUG_INSTANCE_ID,
+    hasRedis: Boolean(redis),
+    envSeen,
+    rawType,
+    raw,
+    redisErr,
+    roundCount: ROUND_COUNT,
+  };
+}
+// #endregion
+
 export async function getSession(): Promise<SessionState> {
   if (redis) {
     const session = await redis.get<SessionState>("session");

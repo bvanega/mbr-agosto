@@ -13,6 +13,14 @@ async function postSession(body: Record<string, unknown>) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+  // #region agent log
+  const parsed = await res
+    .clone()
+    .json()
+    .catch(() => null);
+  fetch('http://127.0.0.1:7799/ingest/69afb160-ab63-4848-884b-498fe351088a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6bbbe4'},body:JSON.stringify({sessionId:'6bbbe4',hypothesisId:'D,A,B',location:'app/host/page.tsx:12',message:'host POST /api/session',data:{sent:body,status:res.status,response:parsed},timestamp:Date.now()})}).catch(()=>{});
+  console.log('[dbg] host action', body, res.status, parsed);
+  // #endregion
   if (!res.ok) throw new Error("No se pudo actualizar la sesión");
 }
 

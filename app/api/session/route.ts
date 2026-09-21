@@ -1,4 +1,5 @@
 import {
+  debugSessionState,
   getSession,
   resetGame,
   setSession,
@@ -16,7 +17,10 @@ function isPhase(value: unknown): value is Phase {
 export async function GET() {
   const session = await getSession();
   const count = await submittedCount(session.round);
-  return Response.json({ ...session, submittedCount: count });
+  // #region agent log
+  const __debug = { ...(await debugSessionState()), op: "GET" };
+  // #endregion
+  return Response.json({ ...session, submittedCount: count, __debug });
 }
 
 export async function POST(request: Request) {
@@ -28,7 +32,10 @@ export async function POST(request: Request) {
 
   if (body.action === "reset") {
     const session = await resetGame();
-    return Response.json({ ...session, submittedCount: 0 });
+    // #region agent log
+    const __debug = { ...(await debugSessionState()), op: "POST:reset" };
+    // #endregion
+    return Response.json({ ...session, submittedCount: 0, __debug });
   }
 
   const current = await getSession();
@@ -50,5 +57,13 @@ export async function POST(request: Request) {
 
   const session = await setSession(next);
   const count = await submittedCount(session.round);
-  return Response.json({ ...session, submittedCount: count });
+  // #region agent log
+  const __debug = {
+    ...(await debugSessionState()),
+    op: `POST:${body.action ?? "set"}`,
+    before: current,
+    wrote: next,
+  };
+  // #endregion
+  return Response.json({ ...session, submittedCount: count, __debug });
 }
