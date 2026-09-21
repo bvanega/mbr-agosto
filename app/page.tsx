@@ -13,11 +13,18 @@ export default function Home() {
   const [revealedRounds, setRevealedRounds] = useState<boolean[]>(() =>
     ROUNDS.map(() => false),
   );
+  const [realShownRounds, setRealShownRounds] = useState<boolean[]>(() =>
+    ROUNDS.map(() => false),
+  );
 
   const round = ROUNDS[roundIndex];
   const order = orders[roundIndex];
   const revealed = revealedRounds[roundIndex];
+  const showReal = realShownRounds[roundIndex];
   const result = scoreOrder(order, round);
+  const correctOrder = [...round.clients]
+    .sort((a, b) => a.correctPos - b.correctPos)
+    .map((client) => client.key);
   const maxPoints = maxRoundPoints(round.clients.length);
 
   const roundTotals = ROUNDS.map((item, index) =>
@@ -46,11 +53,18 @@ export default function Home() {
     );
   };
 
+  const showRealRanking = () => {
+    setRealShownRounds((prev) =>
+      prev.map((value, index) => (index === roundIndex ? true : value)),
+    );
+  };
+
   const reshuffle = () => updateOrder(shuffledClientKeys(round));
 
   const restart = () => {
     setOrders(ROUNDS.map((item) => shuffledClientKeys(item)));
     setRevealedRounds(ROUNDS.map(() => false));
+    setRealShownRounds(ROUNDS.map(() => false));
     setRoundIndex(0);
   };
 
@@ -80,7 +94,9 @@ export default function Home() {
         <h2 className="mt-1 font-display text-2xl font-semibold">{round.title}</h2>
         <p className="mt-2 text-sm leading-relaxed text-muted">
           {revealed
-            ? "Resultado revelado. Cada tarjeta muestra la posición real y los puntos."
+            ? showReal
+              ? "Este es el ranking real del período."
+              : "Resultado revelado sobre el orden del equipo. Tocá Ver ranking real para reordenar."
             : `Armen el ranking entre todos: del 1º al 5º por profit, y los ${round.worstCount === 1 ? "peores" : `${round.worstCount} peores`} abajo.`}
         </p>
 
@@ -99,7 +115,7 @@ export default function Home() {
       <section className="mt-6">
         <RankList
           clients={round.clients}
-          order={order}
+          order={revealed && showReal ? correctOrder : order}
           onChange={revealed ? undefined : updateOrder}
           disabled={revealed}
           showValues={revealed}
@@ -145,7 +161,23 @@ export default function Home() {
             Anterior
           </button>
 
-          {revealed ? (
+          {!revealed ? (
+            <button
+              type="button"
+              onClick={reveal}
+              className="min-h-14 flex-1 rounded-[16px] bg-mint px-5 text-base font-semibold text-ink"
+            >
+              Revelar resultado
+            </button>
+          ) : !showReal ? (
+            <button
+              type="button"
+              onClick={showRealRanking}
+              className="min-h-14 flex-1 rounded-[16px] bg-mint px-5 text-base font-semibold text-ink"
+            >
+              Ver ranking real
+            </button>
+          ) : (
             <button
               type="button"
               onClick={() =>
@@ -155,14 +187,6 @@ export default function Home() {
               className="min-h-14 flex-1 rounded-[16px] bg-mint px-5 text-base font-semibold text-ink disabled:opacity-30"
             >
               Siguiente ronda
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={reveal}
-              className="min-h-14 flex-1 rounded-[16px] bg-mint px-5 text-base font-semibold text-ink"
-            >
-              Revelar resultado
             </button>
           )}
 
